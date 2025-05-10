@@ -1,0 +1,15 @@
+[package]
+name = "battle-net"
+version = "0.1.0"
+authors = ["Zolstoy <zolstoy.dev@gmail.com>"]
+edition = "2021"
+
+[lib]
+# name = "battle-net"
+doctest = false
+
+[dependencies]
+anyhow = "1.0.98"
+battle-net-oauth = "0.3.0"
+thiserror = "2.0.12"
+tokio = {version = "1.45.0", features = ["macros", "rt"]}
