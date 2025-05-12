@@ -5,7 +5,6 @@ authors = ["Zolstoy <zolstoy.dev@gmail.com>"]
 edition = "2021"
 
 [lib]
-# name = "battle-net"
 doctest = false
 
 [dependencies]

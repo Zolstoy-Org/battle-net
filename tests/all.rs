@@ -24,11 +24,11 @@ mod tests_battle_net {
 
         let listener = TcpListener::bind(addr).await?;
 
-        let (stream, _) = listener.accept().await?;
-
-        let io = TokioIo::new(stream);
-
         tokio::task::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+
+            let io = TokioIo::new(stream);
+
             if let Err(err) = http1::Builder::new()
                 .serve_connection(io, service_fn(hello))
                 .await
@@ -36,7 +36,6 @@ mod tests_battle_net {
                 eprintln!("Error serving connection: {:?}", err);
             }
         });
-
         Ok(())
     }
 
