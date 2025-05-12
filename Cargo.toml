@@ -11,7 +11,10 @@ doctest = false
 [dependencies]
 anyhow = "1.0.98"
 battle-net-oauth = "0.3.0"
+reqwest = "0.12.15"
 thiserror = "2.0.12"
+
+[dependencies-dev]
 hyper = { version = "1.6.0", features = ["full"] }
 tokio = { version = "1.45.0", features = ["full"] }
 http-body-util = "0.1.3"
