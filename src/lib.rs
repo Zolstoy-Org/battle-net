@@ -92,6 +92,11 @@ impl GameRoute {
     }
 }
 
+#[cfg(not(test))]
+const ADDRESS: &str = "api.blizzard.com";
+#[cfg(test)]
+const ADDRESS: &str = "localhost";
+
 impl Connection {
     pub fn new(region: RegionUriPart, token: &str) -> Connection {
         Connection {
@@ -101,7 +106,7 @@ impl Connection {
     }
 
     fn get_uri(&self, game_route: GameRoute, locale: LocaleUriPart) -> String {
-        format!("https://{region}.api.blizzard.com/data/{game_route_part}/connected-realm/106/auctions?namespace=dynamic-{region}&locale={locale}",
+        format!("https://{region}.{ADDRESS}/data/{game_route_part}/connected-realm/106/auctions?namespace=dynamic-{region}&locale={locale}",
             region = self.region.value(), game_route_part = game_route.value(), locale = locale.value())
     }
 
@@ -110,15 +115,26 @@ impl Connection {
         realm_id: u32,
         locale: LocaleUriPart,
     ) -> Result<u32> {
-        Ok(
-            reqwest::get(self.get_uri(GameRoute::WoW(WoWRoute::Auctions(realm_id)), locale))
-                .await
-                .map_err(|err| Error::HttpError(err))?
-                .text()
-                .await
-                .map_err(|err| Error::HttpError(err))?
-                .split("\r\n")
-                .count() as u32,
-        )
+        let uri = self.get_uri(GameRoute::WoW(WoWRoute::Auctions(realm_id)), locale);
+
+        let client = reqwest::Client::default();
+
+        let request = reqwest::Request::new(
+            reqwest::Method::GET,
+            reqwest::Url::parse(uri.as_str()).map_err(|_err| Error::GenericError)?,
+        );
+
+        let tmp = reqwest::RequestBuilder::from_parts(client, request)
+            .bearer_auth(&self.token)
+            .send()
+            .await
+            .map_err(|err| Error::HttpError(err))?
+            .text()
+            .await
+            .map_err(|err| Error::HttpError(err))?
+            .split("\r\n")
+            .count() as u32;
+
+        Ok(tmp)
     }
 }
