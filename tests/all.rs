@@ -19,14 +19,19 @@ mod tests_battle_net {
     async fn hello(
         request: Request<hyper::body::Incoming>,
     ) -> std::result::Result<Response<Full<Bytes>>, Infallible> {
-        let tmp: String = request
+        let tmp = request
             .into_body()
             .frame()
             .await
             .unwrap()
             .unwrap()
             .into_data()
-            .unwrap().
+            .unwrap()
+            .to_vec();
+
+        let body = str::from_utf8(&tmp).unwrap().to_string();
+
+        println!("====>{body}");
 
         Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
     }
