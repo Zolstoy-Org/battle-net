@@ -3,8 +3,9 @@ mod tests_battle_net {
     use std::convert::Infallible;
     use std::net::SocketAddr;
 
-    use battle_net::Connection;
-    use battle_net::RegionUriPart;
+    use battle_net::instance::Instance;
+    use battle_net::instance::Locale;
+    use battle_net::instance::Region;
     use http_body_util::Full;
     use hyper::body::Bytes;
     use hyper::server::conn::http1;
@@ -43,12 +44,10 @@ mod tests_battle_net {
     async fn case_01_nb_auctions() -> anyhow::Result<()> {
         bootstrap_server().await?;
 
-        let bnet_conn = Connection::new(RegionUriPart::EU, "token1");
+        let bnet_conn = Instance::new(Region::EU, "token1");
         assert_eq!(
-            0,
-            bnet_conn
-                .get_auctions_by_realm_id(42, battle_net::LocaleUriPart::EnUs)
-                .await?
+            1,
+            bnet_conn.get_auctions_by_realm_id(42, Locale::EnUs).await?
         );
 
         Ok(())
