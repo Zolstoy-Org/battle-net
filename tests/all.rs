@@ -1,11 +1,13 @@
 #[cfg(test)]
 mod tests_battle_net {
+    use core::str;
     use std::convert::Infallible;
     use std::net::SocketAddr;
 
     use battle_net::instance::Instance;
     use battle_net::instance::Locale;
     use battle_net::instance::Region;
+    use http_body_util::BodyExt;
     use http_body_util::Full;
     use hyper::body::Bytes;
     use hyper::server::conn::http1;
@@ -15,8 +17,17 @@ mod tests_battle_net {
     use tokio::net::TcpListener;
 
     async fn hello(
-        _: Request<hyper::body::Incoming>,
+        request: Request<hyper::body::Incoming>,
     ) -> std::result::Result<Response<Full<Bytes>>, Infallible> {
+        let tmp: String = request
+            .into_body()
+            .frame()
+            .await
+            .unwrap()
+            .unwrap()
+            .into_data()
+            .unwrap().
+
         Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
     }
 
