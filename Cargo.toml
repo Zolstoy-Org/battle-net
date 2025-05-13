@@ -10,8 +10,13 @@ doctest = false
 [dependencies]
 anyhow = "1.0.98"
 battle-net-oauth = "0.3.0"
-reqwest = "0.12.15"
+reqwest = {version = "0.12.15", features = ["rustls-tls"]}
+rustls = "0.23.27"
+rustls-native-certs = "0.8.1"
 thiserror = "2.0.12"
+tokio-rustls = "0.26.2"
+webpki = "0.22.4"
+webpki-roots = "1.0.0"
 
 [dev-dependencies]
 hyper = { version = "1.6.0", features = ["full"] }
