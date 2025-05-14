@@ -131,6 +131,10 @@ RZb6vjD6zPWZElSkrwGczDM=
 
     #[tokio::test]
     async fn case_01_nb_auctions() -> anyhow::Result<()> {
+        rustls::crypto::ring::default_provider()
+            .install_default()
+            .expect("Failed to install rustls crypto provider");
+
         bootstrap_server().await?;
 
         let mut instance = Instance::new(Region::EU, "token1");

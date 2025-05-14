@@ -121,11 +121,18 @@ impl Instance {
     pub async fn get_auctions_by_realm_id(&self, realm_id: u32, locale: Locale) -> Result<u32> {
         let uri = self.get_uri(Game::WoW(WoW::Auctions(realm_id)), locale);
 
+        let tmp = &self
+            .root_cert_store
+            .roots
+            .first()
+            .unwrap()
+            .subject_public_key_info
+            .as_ref()
+            .to_vec();
+
         let client = reqwest::Client::builder()
             .use_rustls_tls()
-            // .add_root_certificate(
-            //     Certificate::from_pem(&self.root_cert_store.roots.first().unwrap().subject.concat()                    .unwrap(),
-            // )
+            .add_root_certificate(Certificate::from_der(tmp).unwrap())
             .build()
             .unwrap();
 

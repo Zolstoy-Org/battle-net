@@ -100,6 +100,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "battle-net-oauth",
+ "disp_array",
  "http-body-util",
  "hyper 1.6.0",
  "hyper-util",
@@ -259,6 +260,12 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
+
+[[package]]
+name = "disp_array"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59d4dfa85706cb4eec19831c154ff4f43f65d2749450a5d58ee7270d5c750c41"
 
 [[package]]
 name = "displaydoc"
