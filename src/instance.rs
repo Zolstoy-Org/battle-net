@@ -123,7 +123,9 @@ impl Instance {
 
         let client = reqwest::Client::builder()
             .use_rustls_tls()
-            .add_root_certificate(Certificate::from_pem(self.root_cert_store.roots.first().unwrap()
+            // .add_root_certificate(
+            //     Certificate::from_pem(&self.root_cert_store.roots.first().unwrap().subject.concat()                    .unwrap(),
+            // )
             .build()
             .unwrap();
 
