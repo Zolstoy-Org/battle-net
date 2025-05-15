@@ -1,8 +1,6 @@
+use std::vec;
+
 use reqwest::Certificate;
-use rustls::pki_types::pem::PemObject;
-use rustls::pki_types::CertificateDer;
-use rustls::RootCertStore;
-use webpki_roots::TLS_SERVER_ROOTS;
 
 use crate::error::Error;
 use crate::result::Result;
@@ -11,7 +9,7 @@ pub struct Instance {
     token: String,
     region: Region,
     address: String,
-    root_cert_store: RootCertStore,
+    ca_cert: Vec<u8>,
 }
 
 pub enum Region {
@@ -97,9 +95,7 @@ impl Instance {
             token: token.to_string(),
             address: format!("{}.api.blizzard.com", region.value()).to_string(),
             region,
-            root_cert_store: RootCertStore {
-                roots: TLS_SERVER_ROOTS.into(),
-            },
+            ca_cert: vec![],
         }
     }
 
@@ -107,10 +103,8 @@ impl Instance {
         self.address = address;
     }
 
-    pub fn add_ca_cert<'a>(&mut self, cert_slice: &'a [u8]) {
-        self.root_cert_store.add_parsable_certificates(
-            CertificateDer::pem_slice_iter(cert_slice).map(|result| result.unwrap()),
-        );
+    pub fn set_ca_cert<'a>(&mut self, pem_cert_slice: Vec<u8>) {
+        self.ca_cert = pem_cert_slice;
     }
 
     fn get_uri(&self, game_route: Game, locale: Locale) -> String {
@@ -121,20 +115,14 @@ impl Instance {
     pub async fn get_auctions_by_realm_id(&self, realm_id: u32, locale: Locale) -> Result<u32> {
         let uri = self.get_uri(Game::WoW(WoW::Auctions(realm_id)), locale);
 
-        let tmp = &self
-            .root_cert_store
-            .roots
-            .first()
-            .unwrap()
-            .subject_public_key_info
-            .as_ref()
-            .to_vec();
+        let mut client_builder = reqwest::Client::builder().use_rustls_tls();
 
-        let client = reqwest::Client::builder()
-            .use_rustls_tls()
-            .add_root_certificate(Certificate::from_der(tmp).unwrap())
-            .build()
-            .unwrap();
+        if self.ca_cert.len() > 0 {
+            client_builder =
+                client_builder.add_root_certificate(Certificate::from_pem(&self.ca_cert).unwrap());
+        }
+
+        let client = client_builder.build().unwrap();
 
         let request = reqwest::Request::new(
             reqwest::Method::GET,

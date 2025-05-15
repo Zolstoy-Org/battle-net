@@ -105,6 +105,7 @@ dependencies = [
  "hyper 1.6.0",
  "hyper-util",
  "reqwest 0.12.15",
+ "ring",
  "rustls",
  "rustls-native-certs",
  "thiserror",

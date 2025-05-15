@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests_battle_net {
-    use core::str;
     use std::convert::Infallible;
     use std::net::SocketAddr;
     use std::sync::Arc;
@@ -8,7 +7,6 @@ mod tests_battle_net {
     use battle_net::instance::Instance;
     use battle_net::instance::Locale;
     use battle_net::instance::Region;
-    use http_body_util::BodyExt;
     use http_body_util::Full;
     use hyper::body::Bytes;
     use hyper::server::conn::http1;
@@ -21,28 +19,6 @@ mod tests_battle_net {
     use rustls::pki_types::PrivatePkcs8KeyDer;
     use tokio::net::TcpListener;
     use tokio_rustls::TlsAcceptor;
-
-    async fn hello(
-        request: Request<hyper::body::Incoming>,
-    ) -> std::result::Result<Response<Full<Bytes>>, Infallible> {
-        println!("SERVICE");
-
-        let tmp = request
-            .into_body()
-            .frame()
-            .await
-            .unwrap()
-            .unwrap()
-            .into_data()
-            .unwrap()
-            .to_vec();
-
-        let body = str::from_utf8(&tmp).unwrap().to_string();
-
-        println!("====>{body}");
-
-        Ok(Response::new(Full::new(Bytes::from("Hello, \r\nWorld!"))))
-    }
 
     const SERVER_CERT: &[u8] = b"-----BEGIN CERTIFICATE-----
 MIIDMTCCAhmgAwIBAgIUPW2I5vQZWOxWMHqP1Pu73GfKvhUwDQYJKoZIhvcNAQEL
@@ -96,6 +72,40 @@ RZb6vjD6zPWZElSkrwGczDM=
 -----END PRIVATE KEY-----
 ";
 
+    const CA_CERT: &[u8] = b"-----BEGIN CERTIFICATE-----
+MIIDGzCCAgOgAwIBAgIUVlpyalwiQIyyrcHPGXGm+1fEPMIwDQYJKoZIhvcNAQEL
+BQAwHTELMAkGA1UEBhMCRkkxDjAMBgNVBAMMBXZhaGlkMB4XDTI0MTIwMTIwMjEy
+NVoXDTI5MTEzMDIwMjEyNVowHTELMAkGA1UEBhMCRkkxDjAMBgNVBAMMBXZhaGlk
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAk/W74DzJBDOw5OW+EXSN
+gMAfmgZnRc6sP698IcrsBFs78VqB0donQqltnD43Ohxe+iHDGdHI1H4I3dY3OgCY
+HSIibJEkCfO4z1A3NtsNI8y2+AO3QKhMm9XK4TwMW9aFCnaocB+SbIbfmSiW5tfU
+KXfVp8ya0ieAO5zTEkhXX6ZGqr1gFtyM7wx3pjUuzffMnFQPrIZoY9JxBe3qnPED
+mkjC5qTxKytAfb6PpYYSl+jhnykfsMyR9IrypwUIG+IXImPd8y/6+m6JN06fwQWV
+p49hu3XvvtGOEU23tEbgDQR5t0AjKMlHmT2Y0WG6GsAnDALnNBkGq7ZNrk17Mw91
+VQIDAQABo1MwUTAdBgNVHQ4EFgQUOl11VxPYjLse2i7pNIXEc+Nn/iUwHwYDVR0j
+BBgwFoAUOl11VxPYjLse2i7pNIXEc+Nn/iUwDwYDVR0TAQH/BAUwAwEB/zANBgkq
+hkiG9w0BAQsFAAOCAQEAH0QgIq509cxFwSxqZRpbLBuHbdUq+xFB42N0ttDNJZzi
+T01OWsPYtim8/WXlYC5PHv1FZthY9/7Ci2tEicm6X01CNnvNgeZx8bBGpOq0rqkY
++9xRPSQXVoIbApg3KHDeUq6Fe9leASFohEbXk7gbi9c1yuT4Z+O19KmY8/rtvR1N
+U9c0sNvcDC5Q4bVai6KAhLxzLCBaYSqY4ku881K3pBSNVEy5gBVj466DOFNLPNg6
+Oha9NBAsvMsXonrrYDYtwk92p3L9O55b/YKG0MYW4qCB27SZnYZwDea9+h/MLvFV
+lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
+-----END CERTIFICATE-----
+";
+
+    async fn service(
+        request: Request<hyper::body::Incoming>,
+    ) -> std::result::Result<Response<Full<Bytes>>, Infallible> {
+        println!("SERVICE");
+
+        request
+            .headers()
+            .iter()
+            .for_each(|header| println!("{}: {:?}", header.0, header.1));
+
+        Ok(Response::new(Full::new(Bytes::from("Hello, \r\nWorld!"))))
+    }
+
     async fn bootstrap_server() -> anyhow::Result<()> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 443));
 
@@ -120,7 +130,7 @@ RZb6vjD6zPWZElSkrwGczDM=
             let io = TokioIo::new(tls_stream);
 
             if let Err(err) = http1::Builder::new()
-                .serve_connection(io, service_fn(hello))
+                .serve_connection(io, service_fn(service))
                 .await
             {
                 eprintln!("Error serving connection: {:?}", err);
@@ -139,9 +149,10 @@ RZb6vjD6zPWZElSkrwGczDM=
 
         let mut instance = Instance::new(Region::EU, "token1");
         instance.set_address("localhost".to_string());
+        instance.set_ca_cert(CA_CERT.to_vec());
 
         assert_eq!(
-            1,
+            2,
             instance.get_auctions_by_realm_id(42, Locale::EnUs).await?
         );
 
