@@ -10,6 +10,7 @@ pub struct Instance {
     region: Region,
     address: String,
     ca_cert: Vec<u8>,
+    port: u16,
 }
 
 pub enum Region {
@@ -96,6 +97,7 @@ impl Instance {
             address: format!("{}.api.blizzard.com", region.value()).to_string(),
             region,
             ca_cert: vec![],
+            port: 443,
         }
     }
 
@@ -107,9 +109,13 @@ impl Instance {
         self.ca_cert = pem_cert_slice;
     }
 
+    pub fn set_port(&mut self, port: u16) {
+        self.port = port;
+    }
+
     fn get_uri(&self, game_route: Game, locale: Locale) -> String {
-        format!("https://{address}/data/{game_route_part}/connected-realm/106/auctions?namespace=dynamic-{region}&locale={locale}",
-            address = self.address, region = self.region.value(), game_route_part = game_route.value(), locale = locale.value())
+        format!("https://{address}:{port}/data/{game_route_part}/connected-realm/106/auctions?namespace=dynamic-{region}&locale={locale}",
+            address = self.address, port = self.port, region = self.region.value(), game_route_part = game_route.value(), locale = locale.value())
     }
 
     pub async fn get_auctions_by_realm_id(&self, realm_id: u32, locale: Locale) -> Result<u32> {

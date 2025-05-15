@@ -107,7 +107,7 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
     }
 
     async fn bootstrap_server() -> anyhow::Result<()> {
-        let addr = SocketAddr::from(([127, 0, 0, 1], 443));
+        let addr = SocketAddr::from(([127, 0, 0, 1], 4567));
 
         let listener = TcpListener::bind(addr).await?;
 
@@ -150,6 +150,7 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
         let mut instance = Instance::new(Region::EU, "token1");
         instance.set_address("localhost".to_string());
         instance.set_ca_cert(CA_CERT.to_vec());
+        instance.set_port(4567);
 
         assert_eq!(
             2,
