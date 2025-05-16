@@ -1,9 +1,5 @@
 #[cfg(test)]
 mod tests_battle_net {
-    use std::convert::Infallible;
-    use std::net::SocketAddr;
-    use std::sync::Arc;
-
     use battle_net::instance::Instance;
     use battle_net::instance::Locale;
     use battle_net::instance::Region;
@@ -17,7 +13,13 @@ mod tests_battle_net {
     use rustls::pki_types::CertificateDer;
     use rustls::pki_types::PrivateKeyDer;
     use rustls::pki_types::PrivatePkcs8KeyDer;
+    use std::convert::Infallible;
+    use std::net::SocketAddr;
+    use std::net::TcpStream;
+    use std::sync::Arc;
+    use std::time::Duration;
     use tokio::net::TcpListener;
+    use tokio::sync::mpsc;
     use tokio_rustls::TlsAcceptor;
 
     const SERVER_CERT: &[u8] = b"-----BEGIN CERTIFICATE-----
@@ -95,6 +97,7 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
 
     async fn service(
         request: Request<hyper::body::Incoming>,
+        sender: mpsc::Sender<String>,
     ) -> std::result::Result<Response<Full<Bytes>>, Infallible> {
         println!("SERVICE");
 
@@ -103,10 +106,11 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
             .iter()
             .for_each(|header| println!("{}: {:?}", header.0, header.1));
 
+        sender.send("test".to_string()).await.unwrap();
         Ok(Response::new(Full::new(Bytes::from("Hello, \r\nWorld!"))))
     }
 
-    async fn bootstrap_server() -> anyhow::Result<()> {
+    async fn bootstrap_server() -> anyhow::Result<mpsc::Receiver<String>> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 4567));
 
         let listener = TcpListener::bind(addr).await?;
@@ -120,6 +124,8 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
             .unwrap();
         let tls_acceptor = TlsAcceptor::from(TlsAcceptor::from(Arc::new(config)));
 
+        let (sender, receiver) = tokio::sync::mpsc::channel::<String>(1);
+
         println!("LISTENNING");
 
         tokio::task::spawn(async move {
@@ -129,32 +135,31 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
 
             let io = TokioIo::new(tls_stream);
 
-            if let Err(err) = http1::Builder::new()
-                .serve_connection(io, service_fn(service))
-                .await
-            {
+            let func = service_fn(move |req| {
+                let sender = sender.clone();
+                async move { service(req, sender).await }
+            });
+
+            if let Err(err) = http1::Builder::new().serve_connection(io, func).await {
                 eprintln!("Error serving connection: {:?}", err);
             }
         });
-        Ok(())
+        Ok(receiver)
     }
 
+    #[test_with::https(127.0.0.1:4567)]
     #[tokio::test]
-    async fn case_01_nb_auctions() -> anyhow::Result<()> {
+    async fn case_01_auth() -> anyhow::Result<()> {
         rustls::crypto::ring::default_provider()
             .install_default()
             .expect("Failed to install rustls crypto provider");
 
-        bootstrap_server().await?;
+        let mut receiver = bootstrap_server().await?;
 
-        let mut instance = Instance::new(Region::EU, "token1");
-        instance.set_address("localhost".to_string());
-        instance.set_ca_cert(CA_CERT.to_vec());
-        instance.set_port(4567);
-
-        assert_eq!(
-            2,
-            instance.get_auctions_by_realm_id(42, Locale::EnUs).await?
+        let token = battle_net::authenticate_with_url(
+            "https://localhost:4567",
+            "client_id",
+            "client_secret",
         );
 
         Ok(())
