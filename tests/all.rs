@@ -1,8 +1,5 @@
 #[cfg(test)]
 mod tests_battle_net {
-    use battle_net::instance::Instance;
-    use battle_net::instance::Locale;
-    use battle_net::instance::Region;
     use http_body_util::Full;
     use hyper::body::Bytes;
     use hyper::server::conn::http1;
@@ -15,9 +12,7 @@ mod tests_battle_net {
     use rustls::pki_types::PrivatePkcs8KeyDer;
     use std::convert::Infallible;
     use std::net::SocketAddr;
-    use std::net::TcpStream;
     use std::sync::Arc;
-    use std::time::Duration;
     use tokio::net::TcpListener;
     use tokio::sync::mpsc;
     use tokio_rustls::TlsAcceptor;

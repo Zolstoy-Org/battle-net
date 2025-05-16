@@ -1,7 +1,6 @@
 use crate::error::Error;
 use crate::result::Result;
 use reqwest::Certificate;
-use serde::{Deserialize, Serialize};
 use std::vec;
 
 pub struct Instance {
@@ -18,7 +17,7 @@ pub enum AuthRegion {
 }
 
 impl AuthRegion {
-    fn url(&self) -> &str {
+    pub(crate) fn url(&self) -> &str {
         match *self {
             AuthRegion::EuUsApac => "https://oauth.battle.net/token",
             AuthRegion::Cn => "https://oauth.battlenet.com.cn/token",
@@ -101,43 +100,6 @@ impl Game {
             }
         }
     }
-}
-
-pub async fn authenticate(
-    client_id: &str,
-    client_secret: &str,
-    auth_region: AuthRegion,
-) -> Result<String> {
-    let token = authenticate_with_url(client_id, client_secret, auth_region.url()).await?;
-    Ok(token)
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AuthInfo {
-    pub access_token: String,
-    pub token_type: String,
-    pub expires_in: usize,
-}
-
-pub async fn authenticate_with_url(
-    client_id: &str,
-    client_secret: &str,
-    url: &str,
-) -> Result<String> {
-    let client = reqwest::Client::new();
-
-    let token = client
-        .post(url)
-        .basic_auth(client_id, Some(client_secret))
-        .form(&[("grant_type", "client_credentials")])
-        .send()
-        .await
-        .map_err(|err| Error::HttpError(err))?
-        .json::<AuthInfo>()
-        .await
-        .map_err(|err| Error::HttpError(err))?
-        .access_token;
-    Ok(token)
 }
 
 impl Instance {
