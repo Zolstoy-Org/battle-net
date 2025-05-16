@@ -142,7 +142,8 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
         Ok(receiver)
     }
 
-    #[test_with::https(127.0.0.1:4567)]
+    }
+
     #[tokio::test]
     async fn case_01_auth() -> anyhow::Result<()> {
         rustls::crypto::ring::default_provider()
@@ -151,7 +152,7 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
 
         let mut receiver = bootstrap_server().await?;
 
-        let token = battle_net::authenticate_with_url(
+        let token = battle_net::authenticate_custom(
             "https://localhost:4567",
             "client_id",
             "client_secret",

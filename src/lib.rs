@@ -1,47 +1,32 @@
 #![forbid(unsafe_code)]
 
 use error::Error;
-use instance::AuthRegion;
 use result::Result;
-use serde::{Deserialize, Serialize};
+use session::Authenticator;
+use session::Region;
+use session::Session;
 
 pub mod error;
-pub mod instance;
 pub mod result;
+pub mod session;
 
 pub async fn authenticate(
-    client_id: &str,
-    client_secret: &str,
-    auth_region: AuthRegion,
-) -> Result<String> {
-    let token = authenticate_with_url(client_id, client_secret, auth_region.url()).await?;
-    Ok(token)
-}
+    client_id: String,
+    client_secret: String,
+    region: Region,
+) -> Result<Session> {
+    if client_id.is_empty() || client_secret.is_empty() {
+        return Err(Error::InvalidCredentials);
+    }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AuthInfo {
-    pub access_token: String,
-    pub token_type: String,
-    pub expires_in: usize,
-}
+    let session = Authenticator::new()
+        .client_id(client_id)
+        .client_secret(client_secret)
+        .region(region)
+        .api_domain(format!("{}.api.blizzard.com", region.api_subdomain()).as_str())
+        .auth_domain(format!("{}", region.auth_domain()).as_str())
+        .authenticate()
+        .await?;
 
-pub async fn authenticate_with_url(
-    client_id: &str,
-    client_secret: &str,
-    url: &str,
-) -> Result<String> {
-    let client = reqwest::Client::new();
-
-    let token = client
-        .post(url)
-        .basic_auth(client_id, Some(client_secret))
-        .form(&[("grant_type", "client_credentials")])
-        .send()
-        .await
-        .map_err(|err| Error::HttpError(err))?
-        .json::<AuthInfo>()
-        .await
-        .map_err(|err| Error::HttpError(err))?
-        .access_token;
-    Ok(token)
+    Ok(session)
 }

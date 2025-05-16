@@ -9,12 +9,15 @@ doctest = false
 
 [dependencies]
 anyhow = "1.0.98"
+log = "0.4.27"
 reqwest = {version = "0.12.15", features = ["rustls-tls", "json"]}
 rustls = {version = "0.23.27", features = ["ring"]}
 serde = {version = "1.0.219", features = ["derive"]}
 serde_json = "1.0.140"
+test-helpers-async = "0.2.3"
 test-with = "0.14.10"
 thiserror = "2.0.12"
+tracing = "0.1.41"
 webpki = "0.22.4"
 webpki-roots = "1.0.0"
 

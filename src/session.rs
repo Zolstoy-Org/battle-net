@@ -1,9 +1,10 @@
 use crate::error::Error;
 use crate::result::Result;
 use reqwest::Certificate;
+use serde::{Deserialize, Serialize};
 use std::vec;
 
-pub struct Instance {
+pub struct Session {
     token: String,
     region: Region,
     address: String,
@@ -11,20 +12,7 @@ pub struct Instance {
     port: u16,
 }
 
-pub enum AuthRegion {
-    EuUsApac,
-    Cn,
-}
-
-impl AuthRegion {
-    pub(crate) fn url(&self) -> &str {
-        match *self {
-            AuthRegion::EuUsApac => "https://oauth.battle.net/token",
-            AuthRegion::Cn => "https://oauth.battlenet.com.cn/token",
-        }
-    }
-}
-
+#[derive(Debug, Clone)]
 pub enum Region {
     Eu,
     Us,
@@ -33,7 +21,16 @@ pub enum Region {
 }
 
 impl Region {
-    fn subdomain(&self) -> &str {
+    pub fn auth_domain(&self) -> &str {
+        match *self {
+            Region::Eu => "https://oauth.battle.net/token",
+            Region::Us => "	https://oauth.battle.net/token",
+            Region::Apac => "https://oauth.battle.net/token",
+            Region::Cn => "https://oauth.battlenet.com.cn/token",
+        }
+    }
+
+    pub fn api_subdomain(&self) -> &str {
         match *self {
             Region::Eu => "eu",
             Region::Us => "us",
@@ -102,36 +99,109 @@ impl Game {
     }
 }
 
-impl Instance {
-    pub fn new(region: Region, token: &str) -> Instance {
-        Instance {
-            token: token.to_string(),
-            address: format!("{}.api.blizzard.com", region.subdomain()).to_string(),
-            region,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AuthInfo {
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: usize,
+}
+
+pub struct Authenticator {
+    client_id: String,
+    client_secret: String,
+    region: Region,
+    auth_domain: String,
+    api_domain: String,
+    ca_cert: Vec<u8>,
+    https: bool,
+    port: u16,
+}
+
+impl Authenticator {
+    pub fn new() -> Self {
+        Authenticator {
+            client_id: String::new(),
+            client_secret: String::new(),
+            region: Region::Us,
+            auth_domain: String::new(),
+            api_domain: String::new(),
             ca_cert: vec![],
+            https: true,
             port: 443,
         }
     }
 
-    pub fn set_address(&mut self, address: String) {
-        self.address = address;
+    pub fn client_id(mut self, client_id: String) -> Self {
+        self.client_id = client_id;
+        self
     }
 
-    pub fn set_ca_cert<'a>(&mut self, pem_cert_slice: Vec<u8>) {
-        self.ca_cert = pem_cert_slice;
+    pub fn client_secret(mut self, client_secret: String) -> Self {
+        self.client_secret = client_secret;
+        self
     }
 
-    pub fn set_port(&mut self, port: u16) {
+    pub fn region(mut self, region: Region) -> Self {
+        self.region = region.clone();
+        self
+    }
+
+    pub fn auth_domain(mut self, auth_domain: &str) -> Self {
+        self.auth_domain = auth_domain.to_string();
+        self
+    }
+
+    pub fn api_domain(mut self, api_domain: &str) -> Self {
+        self.api_domain = api_domain.to_string();
+        self
+    }
+
+    pub fn ca_cert(mut self, ca_cert: &[u8]) -> Self {
+        self.ca_cert = ca_cert.to_vec();
+        self
+    }
+
+    pub fn https(mut self, https: bool) -> Self {
+        self.https = https;
+        self
+    }
+
+    pub fn port(mut self, port: u16) -> Self {
         self.port = port;
+        self
     }
 
-    fn get_uri(&self, game_route: Game, locale: Locale) -> String {
+    pub async fn authenticate(self) -> Result<Session> {
+        let token = reqwest::Client::new()
+            .post(self.auth_domain)
+            .basic_auth(&self.client_id, Some(&self.client_secret))
+            .form(&[("grant_type", "client_credentials")])
+            .send()
+            .await
+            .map_err(|err| Error::HttpError(err))?
+            .json::<AuthInfo>()
+            .await
+            .map_err(|err| Error::HttpError(err))?
+            .access_token;
+
+        Ok(Session {
+            token,
+            region: self.region,
+            address: self.api_domain,
+            ca_cert: self.ca_cert,
+            port: self.port,
+        })
+    }
+}
+
+impl Session {
+    fn api_url(&self, game_route: Game, locale: Locale) -> String {
         format!("https://{address}:{port}/data/{game_route_part}/connected-realm/106/auctions?namespace=dynamic-{region}&locale={locale}",
             address = self.address, port = self.port, region = self.region.subdomain(), game_route_part = game_route.route(), locale = locale.param_value())
     }
 
     pub async fn get_auctions_by_realm_id(&self, realm_id: u32, locale: Locale) -> Result<u32> {
-        let uri = self.get_uri(Game::WoW(WoW::Auctions(realm_id)), locale);
+        let uri = self.api_url(Game::WoW(WoW::Auctions(realm_id)), locale);
 
         let mut client_builder = reqwest::Client::builder().use_rustls_tls();
 

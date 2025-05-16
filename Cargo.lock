@@ -128,14 +128,17 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "log",
  "reqwest",
  "rustls",
  "serde",
  "serde_json",
+ "test-helpers-async",
  "test-with",
  "thiserror 2.0.12",
  "tokio",
  "tokio-rustls",
+ "tracing",
  "webpki",
  "webpki-roots 1.0.0",
 ]
@@ -1906,6 +1909,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-helpers-async"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14349fda5269c3fd51bba05d13d9d37727a464fc4f58464620aa12592e21b85a"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "test-with"
 version = "0.14.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2104,7 +2117,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "784e0ac535deb450455cbfa28a6f0df145ea1bb7ae51b821cf5e7927fdcfbdd0"
 dependencies = [
  "pin-project-lite",
+ "tracing-attributes",
  "tracing-core",
+]
+
+[[package]]
+name = "tracing-attributes"
+version = "0.1.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "395ae124c09f9e6918a2310af6038fba074bcf474ac352496d5910dd59a2226d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
 ]
 
 [[package]]

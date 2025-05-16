@@ -4,4 +4,6 @@ pub enum Error {
     GenericError,
     #[error("HTTP error: {0}")]
     HttpError(reqwest::Error),
+    #[error("Invalid credentials")]
+    InvalidCredentials,
 }
