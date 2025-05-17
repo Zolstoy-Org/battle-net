@@ -22,9 +22,10 @@ pub async fn authenticate(
     let session = Authenticator::new()
         .client_id(client_id)
         .client_secret(client_secret)
-        .region(region)
+        .region(region.clone())
         .api_domain(format!("{}.api.blizzard.com", region.api_subdomain()).as_str())
         .auth_domain(format!("{}", region.auth_domain()).as_str())
+        .https(true)
         .authenticate()
         .await?;
 

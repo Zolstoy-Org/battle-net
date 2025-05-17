@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests_battle_net {
+    use battle_net::session::{Authenticator, Region};
     use http_body_util::Full;
     use hyper::body::Bytes;
     use hyper::server::conn::http1;
@@ -142,8 +143,6 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
         Ok(receiver)
     }
 
-    }
-
     #[tokio::test]
     async fn case_01_auth() -> anyhow::Result<()> {
         rustls::crypto::ring::default_provider()
@@ -152,11 +151,17 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
 
         let mut receiver = bootstrap_server().await?;
 
-        let token = battle_net::authenticate_custom(
-            "https://localhost:4567",
-            "client_id",
-            "client_secret",
-        );
+        let session = Authenticator::new()
+            .api_domain("localhost")
+            .auth_domain("localhost")
+            .ca_cert(CA_CERT)
+            .client_id("testid123".to_string())
+            .client_secret("testsecret123".to_string())
+            .region(Region::Eu)
+            .port(4567)
+            .https(true)
+            .authenticate()
+            .await?;
 
         Ok(())
     }

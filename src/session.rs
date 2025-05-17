@@ -7,9 +7,11 @@ use std::vec;
 pub struct Session {
     token: String,
     region: Region,
-    address: String,
+    api_domain: String,
     ca_cert: Vec<u8>,
     port: u16,
+    https: bool,
+    builder: reqwest::ClientBuilder,
 }
 
 #[derive(Debug, Clone)]
@@ -187,30 +189,42 @@ impl Authenticator {
         Ok(Session {
             token,
             region: self.region,
-            address: self.api_domain,
+            api_domain: self.api_domain,
             ca_cert: self.ca_cert,
             port: self.port,
+            https: self.https,
+            builder: reqwest::ClientBuilder::new(),
         })
     }
 }
 
 impl Session {
+    pub(crate) fn init(&mut self) -> Result<reqwest::Client> {
+        if !self.ca_cert.is_empty() {
+            let cert = Certificate::from_pem(&self.ca_cert).map_err(|err| Error::HttpError(err))?;
+            self.builder = self.builder.add_root_certificate(cert);
+        }
+
+        if self.https {
+            self.builder = self.builder.use_rustls_tls();
+        }
+
+        Ok(self.builder.build().map_err(|err| Error::HttpError(err))?)
+    }
+
     fn api_url(&self, game_route: Game, locale: Locale) -> String {
-        format!("https://{address}:{port}/data/{game_route_part}/connected-realm/106/auctions?namespace=dynamic-{region}&locale={locale}",
-            address = self.address, port = self.port, region = self.region.subdomain(), game_route_part = game_route.route(), locale = locale.param_value())
+        let url_part = format!("{address}:{port}/data/{game_route_part}/connected-realm/106/auctions?namespace=dynamic-{region}&locale={locale}",
+            address = self.api_domain, port = self.port, region = self.region.api_subdomain(), game_route_part = game_route.route(), locale = locale.param_value());
+
+        if self.https {
+            format!("https://{url_part}")
+        } else {
+            format!("http://{url_part}")
+        }
     }
 
     pub async fn get_auctions_by_realm_id(&self, realm_id: u32, locale: Locale) -> Result<u32> {
         let uri = self.api_url(Game::WoW(WoW::Auctions(realm_id)), locale);
-
-        let mut client_builder = reqwest::Client::builder().use_rustls_tls();
-
-        if self.ca_cert.len() > 0 {
-            client_builder =
-                client_builder.add_root_certificate(Certificate::from_pem(&self.ca_cert).unwrap());
-        }
-
-        let client = client_builder.build().unwrap();
 
         let request = reqwest::Request::new(
             reqwest::Method::GET,
