@@ -11,7 +11,6 @@ pub struct Session {
     ca_cert: Vec<u8>,
     port: u16,
     https: bool,
-    builder: reqwest::ClientBuilder,
 }
 
 #[derive(Debug, Clone)]
@@ -193,25 +192,11 @@ impl Authenticator {
             ca_cert: self.ca_cert,
             port: self.port,
             https: self.https,
-            builder: reqwest::ClientBuilder::new(),
         })
     }
 }
 
 impl Session {
-    pub(crate) fn init(&mut self) -> Result<reqwest::Client> {
-        if !self.ca_cert.is_empty() {
-            let cert = Certificate::from_pem(&self.ca_cert).map_err(|err| Error::HttpError(err))?;
-            self.builder = self.builder.add_root_certificate(cert);
-        }
-
-        if self.https {
-            self.builder = self.builder.use_rustls_tls();
-        }
-
-        Ok(self.builder.build().map_err(|err| Error::HttpError(err))?)
-    }
-
     fn api_url(&self, game_route: Game, locale: Locale) -> String {
         let url_part = format!("{address}:{port}/data/{game_route_part}/connected-realm/106/auctions?namespace=dynamic-{region}&locale={locale}",
             address = self.api_domain, port = self.port, region = self.region.api_subdomain(), game_route_part = game_route.route(), locale = locale.param_value());
@@ -223,7 +208,7 @@ impl Session {
         }
     }
 
-    pub async fn get_auctions_by_realm_id(&self, realm_id: u32, locale: Locale) -> Result<u32> {
+    pub async fn get_auctions_by_realm_id(&mut self, realm_id: u32, locale: Locale) -> Result<u32> {
         let uri = self.api_url(Game::WoW(WoW::Auctions(realm_id)), locale);
 
         let request = reqwest::Request::new(
@@ -231,7 +216,18 @@ impl Session {
             reqwest::Url::parse(uri.as_str()).map_err(|_err| Error::GenericError)?,
         );
 
-        let tmp = reqwest::RequestBuilder::from_parts(client, request)
+        let cert = Certificate::from_pem(&self.ca_cert).map_err(|err| Error::HttpError(err))?;
+
+        let mut client_builder = reqwest::ClientBuilder::new();
+
+        if self.https {
+            client_builder = client_builder.use_rustls_tls();
+            if !self.ca_cert.is_empty() {
+                client_builder = client_builder.add_root_certificate(cert);
+            }
+        }
+
+        let tmp = reqwest::RequestBuilder::from_parts(client_builder.build().unwrap(), request)
             .bearer_auth(&self.token)
             .send()
             .await
